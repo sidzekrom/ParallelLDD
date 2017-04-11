@@ -52,7 +52,7 @@
 \maketitle
 
 \section{Summary}
-We are implementing a parallel algorithm from a paper of Gary Miller, Richard Peng and Shen Chen Xu to perform low diameter decompositions in graphs.
+We are implementing a parallel algorithm from a paper of Gary Miller, Richard Peng and Shen Chen Xu to perform low diameter decompositions in graphs. \cite{miller2013parallel}
 
 \section{Background}
 A very fundamental problem that captures several other problems we might want to solve is given a $n\times n$ matrix $A$ and a vector $b$, solve for $x$ in $Ax=b$, and Gaussian elimination is the method we are taught to solve these systems of equations, which has a runtime of $O(n^3)$. There are more sophisticated techniques too, but they all run in super-quadratic runtime. What if we are promised that $A$ has a special structure, that is, $A$ is ``symmetric diagonally dominant'' (SDD)? And additionally, what if we only care about approximating $x$ and not actually completely solving for it? Can we do better? The answer is affirmative because of an important gamechanger in the landscape of algorithm design called Fast SDD solvers. Among matrices that satisfy the SDD property, important ones that always come up in practice are the Laplacian of a graph. For a Laplacian $L$, a lot of graph problems we care about (like max flow, electric current flows in a graph etc) can be solved by solving $Lx=b$ for an appropriately chosen $b$. There are algorithms that let us solve $Lx=b$ in near linear time in the number of nonzero entries in the matrix. Practical SDD solvers would indeed change how we solve a lot of problems in practice. Naturally, a follow up question is ask is ``how can one parallelize a SDD solver?''. A key ingredient in algorithms for solving $Lx=b$ is to perform what is called a `low diameter decomposition' of the vertices in a graph. A low diameter decomposition put vertices into clusters so that the diameters of the clusters are small, and the number of edges between clusters is small too. Thus, making this ingredient highly parallel would give parallel algorithms for solving SDD systems. In our project, we hope to move one step closer towards practical, parallel SDD solvers by coming up with a practically feasible implementation of the key step of low diameter decomposition.
@@ -105,7 +105,7 @@ Lecture 5 of Professor Anupam Gupta's class 15-850 (Advanced Algorithms) this se
 \item As an even more ambitious goal, if we can finish all the previous mentioned goals, we plan to
 use our implementation in a parallelized version of the SDD solver from the
 captivating breakthrough paper by Cohen, Kyng, Miller, Pachocki, Peng, Rao, Xu called
-Solving SDD systems in nearly $m\sqrt{\log{n}}$ time.
+Solving SDD systems in nearly $m\sqrt{\log{n}}$ time. \cite{cohen2014solving}
 
 \end{itemize}
 
@@ -140,5 +140,7 @@ or not receiving good speedups on the parallel version of Miller-Peng-Xu against
 version (which means we have to fix what we are doing). In the case we use this buffer time,
 we won't implement low stretch spanning trees. 
 
+\bibliographystyle{alpha}
+\bibliography{project_proposal}
 
 \end{document}
