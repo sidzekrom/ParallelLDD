@@ -1,9 +1,9 @@
 #include <iostream>
 #include <vector>
-#include "sequential.cpp"
+#include "sdd.h"
 
-std::vector<std::vector<int> > generate_clusters(int num_clusters, int cluster_size){
-  std::vector<std::vector<int> > G(num_clusters*cluster_size, std::vector<int> (0));
+void generate_clusters(int num_clusters, int cluster_size, graph &G){
+  G = graph(num_clusters*cluster_size, std::vector<int> (0));
   for(int i = 0; i<G.size(); i+=cluster_size){
     for(int j = 0; j<cluster_size; j++){
       for(int k = j+1; k<cluster_size; k++){
@@ -17,7 +17,6 @@ std::vector<std::vector<int> > generate_clusters(int num_clusters, int cluster_s
     }
 
   }
-  return G;
 }
 int main() {
     /* parse arguments: this specifies which version of LDD to run */
@@ -25,7 +24,7 @@ int main() {
     /* end parse arguments */
     std::cout << "0 for inputted graph\n1 for n weakly-connected cliques of size k\n";
     int type; std::cin >> type;
-    std::vector<std::vector<int> > graph_adj;
+    graph graph_adj;
     std::vector<int> clusters;
     double beta;
     if(type == 0){
@@ -36,7 +35,7 @@ int main() {
     }else if(type == 1){
         int n, k;
         std::cin >> n >> k >> beta;
-        graph_adj = generate_clusters(n, k);
+        generate_clusters(n, k, graph_adj);
     }
     sequentialLDD(graph_adj, clusters, beta);
     std::cout << "Clusters:\n";
