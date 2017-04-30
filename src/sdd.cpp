@@ -54,9 +54,7 @@ class frontier_elem{
     int vtx;
     int cluster;
     double tie_breaker;
-    frontier_elem(int v, int c, double t) : vtx(v), cluster(c), tie_breaker(t){
-        //vtx = v; cluster = c; tie_breaker = t;
-    }
+    frontier_elem(int v, int c, double t) : vtx(v), cluster(c), tie_breaker(t){}
     /*
     frontier_elem(){
         vtx = 0; cluster = 0; tie_breaker = 0;    
@@ -80,16 +78,22 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
             start = i;
         }
     }
+    std::vector<frontier_elem> frontier;
     for(int i = 0; i<start_times.size(); i++){
         start_times[i] = mx - start_times[i];
+        frontier.push_back(frontier_elem(i, i, start_times[i] % 1.0));
     }
-    std::vector<frontier_elem> frontier;
-    frontier.push_back(frontier_elem(start, start, 0));
     int num_rounds = 0;
     while(!frontier.empty()){
         std::vector<frontier_elem> next_frontier;
         for(auto x : frontier){
-            
+            if(start_times[x.vtx] > num_rounds+1){
+                next_frontier.push_back(x);
+            }else if(start_times[x.vtx] > num_rounds){
+                if(clusters[x.vtx] == -1){
+                    clusters[x.vtx] = x.cluster;
+                }
+            }
         }
     }
 }
