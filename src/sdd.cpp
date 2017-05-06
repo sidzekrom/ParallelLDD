@@ -1,12 +1,17 @@
 #include <vector>
 #include <queue>
-#include "sdd.h"
 #include <random>
+#include <omp.h>
+#include <cstddef>
+
+#include "sdd.h"
 void sequentialLDD(std::vector<std::vector<int> >& input_graph,
                     std::vector<int>& clusters, double beta) {
     int current_cluster = 0;
     clusters = std::vector<int> (input_graph.size(), -1);
     std::vector<int> dist (input_graph.size(), 0);
+    omp_lock_t lock;
+    omp_init_lock(&lock);
     for (int i = 0; i < input_graph.size(); i++) {
         std::vector<int> current_frontier;
         int num_internal = 0;
@@ -19,24 +24,30 @@ void sequentialLDD(std::vector<std::vector<int> >& input_graph,
         // all the outedges
         int current_dist = 0;
         while (current_frontier.size() > 0) {
-            for (int v : current_frontier) {
-                for (int x : input_graph[v]) {
+            #pragma omp parallel for
+            for (int v = 0; v<current_frontier.size(); v++) {
+                for (int x : input_graph[current_frontier[v]]) {
                     if (clusters[x] == -1) {
+                        omp_set_lock(&lock);
                         next_frontier.push_back(x);
+                        omp_unset_lock(&lock);
                     }else if(clusters[x] == current_cluster && dist[x] == current_dist)
                         num_internal++;
                 }
             }
-            if ((double) next_frontier.size() <
-                    beta * ((double) num_internal)) {
+            if ((double) next_frontier.size() < beta * ((double) num_internal)) {
                 break;
             }
             current_dist++;
             num_internal += next_frontier.size();
             current_frontier.clear();
-            for (int v : next_frontier) {
+            #pragma omp parallel for
+            for (int i = 0; i<next_frontier.size(); i++) {
+                int v = next_frontier[i];
                 if(clusters[v] == -1){
+                    omp_set_lock(&lock);
                     current_frontier.push_back(v);
+                    omp_unset_lock(&lock);
                     clusters[v] = current_cluster;
                     dist[v] = current_dist;
                 }
