@@ -11,15 +11,14 @@ void sequentialLDD(std::vector<std::vector<int> >& input_graph,
         std::vector<int> current_frontier;
         int num_internal = 0;
         std::vector<int> next_frontier;
-        if (clusters[i] == -1) {
-            current_frontier.push_back(i);
-        }else
+        if (clusters[i] != -1)
             continue;
+        current_frontier.push_back(i);
         clusters[i] = current_cluster;
         // build next_frontier: lots of repetitions: gives
         // all the outedges
         int current_dist = 0;
-        while (true) {
+        while (current_frontier.size() > 0) {
             for (int v : current_frontier) {
                 for (int x : input_graph[v]) {
                     if (clusters[x] == -1) {
@@ -68,11 +67,9 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
         start_times[i] = d(gen);
     }
     double mx = 0;
-    int start = 0;
     for(int i = 0; i<start_times.size(); i++){
-        if(mx > start_times[i]){
+        if(mx < start_times[i]){
             mx = start_times[i];
-            start = i;
         }
     }
     std::vector<frontier_elem> frontier;
