@@ -90,6 +90,9 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
             putoffs.push_back(i);
         }
     }
+    for(int i = 0; i<10; i++)
+        printf("%lf ", start_times[i]);
+    printf("\n");
     omp_lock_t *vtx_locks = (omp_lock_t *) malloc(sizeof(omp_lock_t) * input_graph.size());
     for(int i = 0; i<input_graph.size(); i++)
         omp_init_lock(vtx_locks+i);
