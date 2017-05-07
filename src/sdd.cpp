@@ -3,7 +3,7 @@
 #include <random>
 #include <omp.h>
 #include <cstddef>
-
+#include "CycleTimer.h"
 #include "sdd.h"
 #define MAX_THREADS 64
 void sequentialLDD(std::vector<std::vector<int> >& input_graph,
@@ -94,6 +94,7 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
     for(int i = 0; i<input_graph.size(); i++)
         omp_init_lock(vtx_locks+i);
     int num_rounds = 1;
+    double t1 = CycleTimer::currentSeconds();
     while(!frontier.empty()){
         std::vector<std::vector<int> > next_frontier_pieces(MAX_THREADS);
         std::vector<int> next_putoffs;
@@ -114,7 +115,6 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
                 }
             }
         }
-        //Sort out the new frontier
         frontier.clear();
         for(int x : putoffs){
             if(start_times[x] < num_rounds+1){
@@ -139,4 +139,6 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
         num_rounds++;
     }
     free(vtx_locks);
+    double t2 = CycleTimer::currentSeconds();
+    printf("%lf sec\n", t2-t1);
 }
