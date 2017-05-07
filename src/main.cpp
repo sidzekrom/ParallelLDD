@@ -5,6 +5,7 @@
 #include "CycleTimer.h"
 #include <map>
 #include <random>
+#include <omp.h>
 
 std::string helper_string = "Flags:\n"
                        "v: verbose\n"
@@ -12,7 +13,7 @@ std::string helper_string = "Flags:\n"
                        "    0: weakly connected cliques\n"
                        "    1: grid graph\n"
                        "f: enter a graph from a file (TODO)\n"
-                       "p: number of processors to use (TODO)\n"
+                       "p: number of processors to use\n"
                        "b: beta value. Default 0.1\n";
 
 void generate_cliques(int num_clusters, int cluster_size, graph &G){
@@ -74,7 +75,7 @@ int main(int argc, char **argv) {
     /* parse arguments: this specifies which version of LDD to run */
     /* fill in parse arguments code here */
     /* end parse arguments */
-    int verbose = 0, type = -1, c, num_processors = 2;
+    int verbose = 0, type = -1, c, num_threads = 2;
     double beta = 0.1;
     char *f_name = NULL;
     std::vector<int> params;
@@ -94,13 +95,14 @@ int main(int argc, char **argv) {
                 beta = atof(optarg);
                 break;
             case 'p':
-                num_processors = atoi(optarg);
+                num_threads = atoi(optarg);
                 break;
             case 'h':
                 std::cout << helper_string;
                 return 0;
         }
     }
+    omp_set_num_threads(num_threads);
     if(type == -1){
         std::cout << helper_string; return 0;
     }

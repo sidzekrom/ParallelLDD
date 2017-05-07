@@ -5,13 +5,12 @@
 #include <cstddef>
 
 #include "sdd.h"
+#define MAX_THREADS 64
 void sequentialLDD(std::vector<std::vector<int> >& input_graph,
                     std::vector<int>& clusters, double beta) {
     int current_cluster = 0;
     clusters = std::vector<int> (input_graph.size(), -1);
     std::vector<int> dist (input_graph.size(), -1);
-    omp_lock_t lock;
-    omp_init_lock(&lock);
     for (int i = 0; i < input_graph.size(); i++) {
         std::vector<int> current_frontier;
         int num_internal = 0;
@@ -57,21 +56,21 @@ void sequentialLDD(std::vector<std::vector<int> >& input_graph,
 }
 class frontier_elem{
     public:
-    int vtx;
     int cluster;
     double tie_breaker;
-    frontier_elem(int v, int c, double t) : vtx(v), cluster(c), tie_breaker(t){}
-    frontier_elem(){ vtx = -1; cluster = 0; tie_breaker = 0; }
+    frontier_elem(int c, double t) : cluster(c), tie_breaker(t){}
+    frontier_elem(){ cluster = -1; tie_breaker = 0; }
 };
 void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta){
     clusters = std::vector<int> (input_graph.size(), -1);
     std::vector<double> start_times(input_graph.size());
     std::vector<frontier_elem> tie_breakers (input_graph.size());
     std::random_device rd;
-    std::mt19937 gen(rd());
+    std::vector<std::mt19937> gens (MAX_THREADS, std::mt19937(rd()));
     std::exponential_distribution<double> d(beta);
+    #pragma parallel for
     for(int i = 0; i<start_times.size(); i++){
-        start_times[i] = d(gen);
+        start_times[i] = d(gens[omp_get_thread_num()]);
     }
     double mx = 0;
     for(int i = 0; i<start_times.size(); i++){
@@ -79,51 +78,65 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
             mx = start_times[i];
         }
     }
-    std::vector<frontier_elem> frontier;
+    std::vector<int> frontier;
     std::vector<int> putoffs;
     for(int i = 0; i<start_times.size(); i++){
         start_times[i] = mx - start_times[i];
         if(start_times[i] < 1){
             clusters[i] = i;
-            frontier.push_back(frontier_elem(i, i, start_times[i]));
+            frontier.push_back(i);
+            tie_breakers[i] = frontier_elem(i, start_times[i]);
         }else{
             putoffs.push_back(i);
         }
     }
+    omp_lock_t *vtx_locks = (omp_lock_t *) malloc(sizeof(omp_lock_t) * input_graph.size());
+    for(int i = 0; i<input_graph.size(); i++)
+        omp_init_lock(vtx_locks+i);
     int num_rounds = 1;
     while(!frontier.empty()){
-        std::vector<frontier_elem> next_frontier;
+        std::vector<std::vector<int> > next_frontier_pieces(MAX_THREADS);
         std::vector<int> next_putoffs;
-        for(auto x : frontier){
-            for(int v : input_graph[x.vtx]){
+        #pragma omp parallel for
+        for(int i = 0; i<frontier.size(); i++){
+            int t = omp_get_thread_num();
+            frontier_elem z = tie_breakers[frontier[i]];
+            for(int v : input_graph[frontier[i]]){
                 if(clusters[v] == -1){
-                    next_frontier.push_back(frontier_elem(v, x.cluster, x.tie_breaker));
+                    omp_set_lock(vtx_locks+v);
+                    if(tie_breakers[v].cluster == -1 || tie_breakers[v].tie_breaker > 
+                            z.tie_breaker){
+                        tie_breakers[v] = z;
+                        omp_unset_lock(vtx_locks+v);
+                        next_frontier_pieces[t].push_back(v);
+                    }else
+                        omp_unset_lock(vtx_locks+v);
                 }
             }
         }
         //Sort out the new frontier
+        frontier.clear();
         for(int x : putoffs){
-            if(start_times[x] < num_rounds+1)
-                next_frontier.push_back(frontier_elem(x, x, start_times[x] - num_rounds));
-            else
+            if(start_times[x] < num_rounds+1){
+               if(clusters[x] == -1 && (tie_breakers[x].cluster = -1
+                    || tie_breakers[x].tie_breaker > start_times[x] - num_rounds)){
+                tie_breakers[x] = frontier_elem(x, start_times[x] - num_rounds);
+                clusters[x] = x;
+                frontier.push_back(x);
+               }
+            }else
                 next_putoffs.push_back(x);
         }
-        for(auto x : next_frontier){
-            if(tie_breakers[x.vtx].vtx == -1 || tie_breakers[x.vtx].tie_breaker > x.tie_breaker){
-                tie_breakers[x.vtx] = x;
-            }
-        }
-        frontier.clear();
-        putoffs.clear();
-        for(auto x : next_frontier){
-            if(clusters[x.vtx] == -1){
-                frontier.push_back(tie_breakers[x.vtx]);
-                clusters[x.vtx] = tie_breakers[x.vtx].cluster;
+        for(std::vector<int> piece : next_frontier_pieces){
+            for(int v : piece){
+                if(clusters[v] == -1){
+                    clusters[v] = tie_breakers[v].cluster;
+                    frontier.push_back(v);
+                }
             }
         }
         putoffs = next_putoffs;
-        next_frontier.clear();
-        next_putoffs.clear();
         num_rounds++;
     }
+    free(vtx_locks);
 }
