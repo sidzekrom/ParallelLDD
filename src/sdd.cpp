@@ -9,7 +9,7 @@ void sequentialLDD(std::vector<std::vector<int> >& input_graph,
                     std::vector<int>& clusters, double beta) {
     int current_cluster = 0;
     clusters = std::vector<int> (input_graph.size(), -1);
-    std::vector<int> dist (input_graph.size(), 0);
+    std::vector<int> dist (input_graph.size(), -1);
     omp_lock_t lock;
     omp_init_lock(&lock);
     for (int i = 0; i < input_graph.size(); i++) {
@@ -20,38 +20,34 @@ void sequentialLDD(std::vector<std::vector<int> >& input_graph,
             continue;
         current_frontier.push_back(i);
         clusters[i] = current_cluster;
+        dist[i] = 0;
         // build next_frontier: lots of repetitions: gives
         // all the outedges
         int current_dist = 0;
         while (current_frontier.size() > 0) {
-            #pragma omp parallel for
+            int num_outs = 0;
+            int bt_frontier = 0;
             for (int v = 0; v<current_frontier.size(); v++) {
                 for (int x : input_graph[current_frontier[v]]) {
+                    num_outs += dist[x] == -1;
                     if (clusters[x] == -1) {
-                        omp_set_lock(&lock);
+                        clusters[x] = current_cluster;
                         next_frontier.push_back(x);
-                        omp_unset_lock(&lock);
                     }else if(clusters[x] == current_cluster && dist[x] == current_dist)
-                        num_internal++;
+                        bt_frontier++;
                 }
             }
-            if ((double) next_frontier.size() < beta * ((double) num_internal)) {
+            num_internal += bt_frontier>>1;
+            if (num_outs < beta * ((double) num_internal)) {
+                for(int x : next_frontier)
+                    clusters[x] = -1;
                 break;
             }
+            num_internal += num_outs;
             current_dist++;
-            num_internal += next_frontier.size();
-            current_frontier.clear();
-            #pragma omp parallel for
-            for (int i = 0; i<next_frontier.size(); i++) {
-                int v = next_frontier[i];
-                if(clusters[v] == -1){
-                    omp_set_lock(&lock);
-                    current_frontier.push_back(v);
-                    omp_unset_lock(&lock);
-                    clusters[v] = current_cluster;
-                    dist[v] = current_dist;
-                }
-            }
+            current_frontier = next_frontier;
+            for(int x : next_frontier)
+                dist[x] = current_dist;
             next_frontier.clear();
         }
         /* current_cluster finished, start next cluster */
