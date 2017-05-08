@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
     double start = CycleTimer::currentSeconds();
     sequentialLDD(graph_adj, clusters_seq, beta);
     double mid = CycleTimer::currentSeconds();
-    millerPengXuLDD(graph_adj, clusters_mpx, beta);
+    millerPengXuLDD(graph_adj, clusters_mpx, beta, num_threads);
     double end = CycleTimer::currentSeconds();
     std::cout << "Seq Clusters took: " << mid - start << " sec\n";
     if(verbose){
