@@ -2,43 +2,57 @@
 #include <queue>
 #include "sdd.h"
 #include <random>
+
+
 void sequentialLDD(std::vector<std::vector<int> >& input_graph,
                     std::vector<int>& clusters, double beta) {
     int current_cluster = 0;
-    clusters = std::vector<int> (input_graph.size(), -1);
-    std::vector<int> dist (input_graph.size(), 0);
+    std::vector<int> clusterdist(3*input_graph.size(), -1);
     for (int i = 0; i < input_graph.size(); i++) {
         std::vector<int> current_frontier;
-        int num_internal = 0;
         std::vector<int> next_frontier;
-        if (clusters[i] != -1)
+        int num_internal = 0;
+        int num_out;
+        if (clusterdist[3*i] != -1)
             continue;
         current_frontier.push_back(i);
-        clusters[i] = current_cluster;
+        clusterdist[3*i] = current_cluster;
+        clusterdist[3*i+1] = 0;
+        clusterdist[3*i+2] = 1;
         // build next_frontier: lots of repetitions: gives
         // all the outedges
         int current_dist = 0;
         while (current_frontier.size() > 0) {
+            num_out = 0;
             for (int v : current_frontier) {
                 for (int x : input_graph[v]) {
-                    if (clusters[x] == -1) {
-                        next_frontier.push_back(x);
-                    }else if(clusters[x] == current_cluster && dist[x] == current_dist)
+                    if (clusterdist[3*x] == -1) {
+                        num_out++;
+                        if (clusterdist[3*x+2] == -1) {
+                            clusterdist[3*x+2] = 1;
+                            next_frontier.push_back(x);
+                        }
+                    }
+                    else if (clusterdist[3*x] == current_cluster &&
+                             clusterdist[3*x+1] == current_dist)
                         num_internal++;
                 }
             }
-            if ((double) next_frontier.size() <
+            if ((double) num_out <
                     beta * ((double) num_internal)) {
+                for (int v : next_frontier) {
+                    clusterdist[3*v+2] = -1;
+                }
                 break;
             }
             current_dist++;
-            num_internal += next_frontier.size();
+            num_internal += num_out;
             current_frontier.clear();
             for (int v : next_frontier) {
-                if(clusters[v] == -1){
+                if (clusterdist[3*v] == -1) {
                     current_frontier.push_back(v);
-                    clusters[v] = current_cluster;
-                    dist[v] = current_dist;
+                    clusterdist[3*v] = current_cluster;
+                    clusterdist[3*v+1] = current_dist;
                 }
             }
             next_frontier.clear();
@@ -46,8 +60,14 @@ void sequentialLDD(std::vector<std::vector<int> >& input_graph,
         /* current_cluster finished, start next cluster */
         current_cluster++;
     }
+    clusters = std::vector<int> (input_graph.size());
+    for (int i = 0; i < clusters.size(); i++) {
+        clusters[i] = clusterdist[3 * i];
+    }
     return;
 }
+
+
 class frontier_elem{
     public:
     int vtx;
@@ -56,6 +76,8 @@ class frontier_elem{
     frontier_elem(int v, int c, double t) : vtx(v), cluster(c), tie_breaker(t){}
     frontier_elem(){ vtx = -1; cluster = 0; tie_breaker = 0; }
 };
+
+
 void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta){
     clusters = std::vector<int> (input_graph.size(), -1);
     std::vector<double> start_times(input_graph.size());
