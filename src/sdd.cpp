@@ -82,7 +82,7 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
     std::random_device rd;
     std::vector<std::mt19937> gens (max_num_threads, std::mt19937(rd()));
     std::exponential_distribution<double> d(beta);
-    #pragma parallel for
+    #pragma parallel for schedule(dynamic) num_threads(max_num_threads)
     for(int i = 0; i<start_times.size(); i++){
         start_times[i] = d(gens[omp_get_thread_num()]);
     }
@@ -117,7 +117,7 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
                 printf("%d ", y);
         printf("\n");
         */
-        #pragma omp parallel for
+        #pragma omp parallel for schedule(dynamic, 5) num_threads(max_num_threads)
         for(int i = 0; i<frontier.size(); i++){
             int t = omp_get_thread_num();
             frontier_elem z = tie_breakers[frontier[i]];
