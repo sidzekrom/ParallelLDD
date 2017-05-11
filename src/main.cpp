@@ -33,22 +33,22 @@ void generate_cliques(int num_clusters, int cluster_size, graph &G){
 }
 void write_clusters(std::vector<int> &clusters, const char *name){
     std::map<int, int> cluster_sizes;
-    for(int x : clusters)
-        cluster_sizes[x]++;
+    for(int i = 0; i<clusters.size(); i++)
+        cluster_sizes[clusters[i]]++;
     FILE *f = fopen(name, "w");
-    fprintf(f, "There are %d clusters\n", cluster_sizes.size());
-    for(auto x : cluster_sizes)
-        fprintf(f, "%d\n", x.second);
+    fprintf(f, "There are %d clusters\n", (int)cluster_sizes.size());
+    for(auto x = cluster_sizes.begin(); x != cluster_sizes.end(); x++)
+        fprintf(f, "%d\n", x->second);
     fclose(f);
 }
 void write_ppm(int width, int height, std::vector<int> &clusters, const char *name){
     FILE *fp = fopen(name, "wb");
     std::mt19937 gen(CycleTimer::currentSeconds());
     std::map<int, unsigned char [3]> cluster_colors;
-    for(int x : clusters){
-        if(!cluster_colors.count(x)){
-            for(int i = 0; i<3; i++){
-                cluster_colors[x][i] = gen();
+    for(int i = 0; i<clusters.size(); i++){
+        if(!cluster_colors.count(clusters[i])){
+            for(int j = 0; j<3; j++){
+                cluster_colors[clusters[i]][j] = gen();
             }
         }
     }
@@ -158,15 +158,15 @@ int main(int argc, char **argv) {
     std::cout << "Seq Clusters took: " << mid - start << " sec\n";
     if(verbose){
         std::cout << "Clusters:\n";
-        for(int x : clusters_seq)
-            std::cout << x << " ";
+        for(int i = 0; i< clusters_seq.size(); i++)
+            std::cout << clusters_seq[i] << " ";
         std::cout << "\n\n";
     }
     std::cout << "Miller,Peng,Xu Clusters took: " << end - mid << " sec\n";
     if(verbose){
         std::cout << "Clusters:\n";
-        for(int x : clusters_mpx)
-            std::cout << x << " ";
+        for(int i = 0; i< clusters_mpx.size(); i++)
+            std::cout << clusters_mpx[i] << " ";
         std::cout << "\n\n";
     }
     if(vis){

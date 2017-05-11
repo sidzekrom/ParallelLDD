@@ -1,3 +1,4 @@
 *.txt
 *.ppm
 graphs/*.txt
+run_sdd

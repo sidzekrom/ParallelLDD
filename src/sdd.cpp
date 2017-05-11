@@ -11,55 +11,49 @@
 void sequentialLDD(std::vector<std::vector<int> >& input_graph,
                     std::vector<int>& clusters, double beta) {
     int current_cluster = 0;
-    std::vector<int> clusterdist(2*input_graph.size(), -1);
+    clusters = std::vector<int> (input_graph.size(), -1);
+    std::vector<int> dist (input_graph.size(), -1);
     for (int i = 0; i < input_graph.size(); i++) {
         std::vector<int> current_frontier;
-        std::vector<int> next_frontier;
         int num_internal = 0;
-        if (clusterdist[2*i] != -1)
+        std::vector<int> next_frontier;
+        if (clusters[i] != -1)
             continue;
         current_frontier.push_back(i);
-        clusterdist[2*i] = current_cluster;
-        clusterdist[2*i+1] = 0;
+        clusters[i] = current_cluster;
+        dist[i] = 0;
         // build next_frontier: lots of repetitions: gives
         // all the outedges
         int current_dist = 0;
         while (current_frontier.size() > 0) {
-            int num_out = 0;
+            int num_outs = 0;
             int bt_frontier = 0;
-            for (int v : current_frontier) {
-                for (int x : input_graph[v]) {
-                    if (clusterdist[2*x] == -1) {
-                        num_out++;
-                        clusterdist[2*x] = current_cluster;
-                        clusterdist[2*x+1] = current_dist+1;
+            for (int v = 0; v<current_frontier.size(); v++) {
+                for (int i = 0; i<input_graph[current_frontier[v]].size(); i++) {
+                    int x = input_graph[current_frontier[v]][i];
+                    num_outs += dist[x] == -1;
+                    if (clusters[x] == -1) {
+                        clusters[x] = current_cluster;
                         next_frontier.push_back(x);
-                    }
-                    else if (clusterdist[2*x] == current_cluster &&
-                             clusterdist[2*x+1] == current_dist)
+                    }else if(clusters[x] == current_cluster && dist[x] == current_dist)
                         bt_frontier++;
                 }
             }
-            num_internal += bt_frontier >> 1;
-            if ((double) num_out <
-                    beta * ((double) num_internal)) {
-                for (int v : next_frontier) {
-                    clusterdist[2*v] = -1;
-                    clusterdist[2*v+1] = -1;
-                }
+            num_internal += bt_frontier>>1;
+            if (num_outs < beta * ((double) num_internal)) {
+                for(int i = 0; i<next_frontier.size(); i++)
+                    clusters[next_frontier[i]] = -1;
                 break;
             }
+            num_internal += num_outs;
             current_dist++;
-            num_internal += num_out;
             current_frontier = next_frontier;
+            for(int i = 0; i<next_frontier.size(); i++)
+                dist[next_frontier[i]] = current_dist;
             next_frontier.clear();
         }
         /* current_cluster finished, start next cluster */
         current_cluster++;
-    }
-    clusters = std::vector<int> (input_graph.size());
-    for (int i = 0; i < clusters.size(); i++) {
-        clusters[i] = clusterdist[2 * i];
     }
     return;
 }
@@ -82,7 +76,7 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
     std::random_device rd;
     std::vector<std::mt19937> gens (max_num_threads, std::mt19937(rd()));
     std::exponential_distribution<double> d(beta);
-    #pragma parallel for
+    #pragma parallel for schedule(dynamic) num_threads(max_num_threads)
     for(int i = 0; i<start_times.size(); i++){
         start_times[i] = d(gens[omp_get_thread_num()]);
     }
@@ -111,17 +105,12 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
     double tt = 0;
     while(!frontier.empty()){
         std::vector<std::vector<int> > next_frontier_pieces(max_num_threads);
-        /*
-        for(auto x : putoffs)
-            for(int y : x)
-                printf("%d ", y);
-        printf("\n");
-        */
-        #pragma omp parallel for
+        #pragma omp parallel for schedule(dynamic, 5) num_threads(max_num_threads)
         for(int i = 0; i<frontier.size(); i++){
             int t = omp_get_thread_num();
             frontier_elem z = tie_breakers[frontier[i]];
-            for(int v : input_graph[frontier[i]]){
+            for(int j = 0; j<input_graph[frontier[i]].size(); j++){
+                int v = input_graph[frontier[i]][j];
                 if(clusters[v] == -1){
                     omp_set_lock(vtx_locks+v);
                     if(tie_breakers[v].cluster == -1 || tie_breakers[v].tie_breaker > 
@@ -161,8 +150,9 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
         }
         double t2 = CycleTimer::currentSeconds();
         tt += t2-t1;
-        for(std::vector<int> piece : next_frontier_pieces){
-            for(int v : piece){
+        for(int j = 0; j<next_frontier_pieces.size(); j++){
+            for(int i = 0; i<next_frontier_pieces[j].size(); i++){
+                int v = next_frontier_pieces[j][i];
                 if(clusters[v] == -1){
                     clusters[v] = tie_breakers[v].cluster;
                     frontier.push_back(v);
