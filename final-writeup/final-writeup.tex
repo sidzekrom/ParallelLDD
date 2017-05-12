@@ -28,7 +28,7 @@
 
 \usepackage{fancyhdr}
 \pagestyle{fancy}
-\lhead{15-418 Project Proposal}
+\lhead{15-418 Writeup}
 \rhead{Jacob Imola (jimola), Sidhanth Mohanty (smohant1)} 
 \cfoot{\thepage}
 
@@ -73,20 +73,18 @@ than $\beta(\text{number of internal edges})$. Put all the visited vertices in a
 remaining graph.
 
 The reason this algorithm is not nicely parallelizable is that picking clusters is an inherently sequential process.
-Miller-Peng-Xu \cite{miller2013parallel} propose an algorithm to bypass this limitation, which we describe below
+Miller-Peng-Xu \cite{miller2013parallel} propose an algorithm to bypass this limitation, which we describe below:
 
-\begin{itemize}
+\begin{enumerate}
 
-\item Assign a value $\delta_u\sim\text{Exp}(\beta)$ to each vertex $u$ (a parallel step).
+\item Assign a value $\delta_u\sim\text{Exp}(\beta)$ to each vertex $u$ (a parallel step). This value is the amount of ``head start'' that each vertex gets.
 
-\item Compute $\delta_{\text{max}} = \max\{\delta_u|u\in V\}$.
+\item Compute $\delta_{\text{max}} = \max\{\delta_u|u\in V\}$, and set the start times of vertex $u$ as $\delta_{\text{max}}-\delta_u$.
 
-\item Set start times of vertex $u$ as $\delta_{\text{max}}-\delta_u$, and at each round add $u$
-to the BFS frontier and start a new cluster if it's start time is less than the number of rounds
-and $u$ has not been visited yet. Each round of BFS happens in parallel.
+\item Do a single BFS, where each vertex in the frontier belongs to a cluster and set any neighbors in the next frontier to the same cluster. Each round of BFS takes 1 second, and a vertex $v$ with start time $S$ joins the frontier at round $\lfloor S \rfloor$ with its own cluster if it hasn't already been visited. We store $S-\lfloor S \rfloor$ as a tie-breaker; if a vertex $u$ in the next frontier hit by multiple vertices in the current frontier, $u$ belongs to the smallest cluster. It is not hard to see that a vertex will belong to the cluster of the vertex that has the minimum distance minus head start.
 
-\end{itemize}
-
+\end{enumerate}
+Steps 1 and 2 are extremely parallelizable. Step 3 involves a single BFS, so it's parallelization depends on the topology of the graph. For each vertex, we store the cluster it belongs to and its minimum tiebreaker.
 Multiple BFS's happening in parallel causes multiple clusters to form at once and is the key step in
 achieving parallelism. We note that for smaller values of
 $\beta$ the performance of the parallel algorithm worsens
@@ -152,7 +150,10 @@ it had very good span and hence would benefit from
 more cores, and hence doing the project using CUDA
 on a Nvidia GPU instead of using \texttt{OpenMP} might have
 been a better idea.
-
+\begin{figure}
+\vspace*{-3cm}\includegraphics[width=\textwidth]{Speedup_plots.png}\vspace{-3cm}
+\caption{Speedup plots for 3 different graphs and 3 different values of $\beta$.}
+\end{figure}
 \section{List of work by each student}
 \begin{itemize}
 
