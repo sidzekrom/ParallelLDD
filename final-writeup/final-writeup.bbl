@@ -1,0 +1,9 @@
+\begin{thebibliography}{MPX13}
+
+\bibitem[MPX13]{miller2013parallel}
+Gary~L Miller, Richard Peng, and Shen~Chen Xu.
+\newblock Parallel graph decompositions using random shifts.
+\newblock In {\em Proceedings of the twenty-fifth annual ACM symposium on
+  Parallelism in algorithms and architectures}, pages 196--203. ACM, 2013.
+
+\end{thebibliography}
