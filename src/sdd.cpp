@@ -1,10 +1,13 @@
 #include <vector>
 #include <queue>
-#include <random>
 #include <omp.h>
 #include <cstddef>
 #include <set>
-#include "CycleTimer.h"
+#include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
+#include <math.h>
+
 #include "sdd.h"
 
 
@@ -73,12 +76,14 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
     clusters = std::vector<int> (input_graph.size(), -1);
     std::vector<double> start_times(input_graph.size());
     std::vector<frontier_elem> tie_breakers (input_graph.size());
-    std::random_device rd;
-    std::vector<std::mt19937> gens (max_num_threads, std::mt19937(rd()));
-    std::exponential_distribution<double> d(beta);
+    srand(time(0));
+    std::vector<unsigned int> seeds (max_num_threads, 0);
+    for(int i = 0; i<max_num_threads; i++)
+        seeds[i] = rand();
     #pragma parallel for schedule(dynamic) num_threads(max_num_threads)
     for(int i = 0; i<start_times.size(); i++){
-        start_times[i] = d(gens[omp_get_thread_num()]);
+        double f = ((double) rand_r(&seeds[omp_get_thread_num()])) / RAND_MAX;
+        start_times[i] = log(f) / -beta;
     }
     double mx = 0;
     for(int i = 0; i<start_times.size(); i++){
@@ -86,6 +91,7 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
             mx = start_times[i];
         }
     }
+    printf("%lf\n", mx);
     std::vector<int> frontier;
     std::vector<std::set<int> > putoffs(max_num_threads, std::set<int> ());
     for(int i = 0; i<start_times.size(); i++){
@@ -99,11 +105,12 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
         }
     }
     omp_lock_t *vtx_locks = (omp_lock_t *) malloc(sizeof(omp_lock_t) * input_graph.size());
+    #pragma omp parallel for
     for(int i = 0; i<input_graph.size(); i++)
         omp_init_lock(vtx_locks+i);
     int num_rounds = 1;
-    double tt = 0;
-    while(!frontier.empty()){
+    int remaining = 0;
+    while(!frontier.empty() || remaining > 0){
         std::vector<std::vector<int> > next_frontier_pieces(max_num_threads);
         #pragma omp parallel for schedule(dynamic, 5) num_threads(max_num_threads)
         for(int i = 0; i<frontier.size(); i++){
@@ -124,7 +131,6 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
             }
         }
         frontier.clear();
-        double t1 = CycleTimer::currentSeconds();
         #pragma omp parallel num_threads(max_num_threads)
         {
         int t = omp_get_thread_num();
@@ -148,8 +154,6 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
             }
         }
         }
-        double t2 = CycleTimer::currentSeconds();
-        tt += t2-t1;
         for(int j = 0; j<next_frontier_pieces.size(); j++){
             for(int i = 0; i<next_frontier_pieces[j].size(); i++){
                 int v = next_frontier_pieces[j][i];
@@ -159,8 +163,11 @@ void millerPengXuLDD(graph &input_graph, std::vector<int> &clusters, double beta
                 }
             }
         }
+        remaining = 0;
+        for(int i = 0; i<putoffs.size(); i++)
+          remaining += putoffs[i].size();
         num_rounds++;
     }
+    printf("%d\n", num_rounds);
     free(vtx_locks);
-    printf("%lf sec\n", tt);
 }

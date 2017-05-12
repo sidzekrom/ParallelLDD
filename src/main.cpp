@@ -4,8 +4,9 @@
 #include <unistd.h>
 #include "CycleTimer.h"
 #include <map>
-#include <random>
 #include <omp.h>
+#include <time.h>
+#include <stdlib.h>
 std::string helper_string = "Flags:\n"
                        "v: verbose\n"
                        "g: we will generate the graph. Takes in argument for type. Will prompt you for size parameters.\n"
@@ -43,13 +44,15 @@ void write_clusters(std::vector<int> &clusters, const char *name){
 }
 void write_ppm(int width, int height, std::vector<int> &clusters, const char *name){
     FILE *fp = fopen(name, "wb");
-    std::mt19937 gen(CycleTimer::currentSeconds());
-    std::map<int, unsigned char [3]> cluster_colors;
+    srand(time(0));
+    std::map<int, unsigned char *> cluster_colors;
     for(int i = 0; i<clusters.size(); i++){
         if(!cluster_colors.count(clusters[i])){
+            unsigned char *col = (unsigned char *)malloc(3*sizeof(unsigned char));
             for(int j = 0; j<3; j++){
-                cluster_colors[clusters[i]][j] = gen();
+                col[j] = rand();
             }
+            cluster_colors[clusters[i]] = col;
         }
     }
     fprintf(fp, "P6\n%d %d\n255\n", width, height);
@@ -115,7 +118,6 @@ int main(int argc, char **argv) {
                 return 0;
         }
     }
-    omp_set_num_threads(num_threads);
     if(type == -1){
         std::cout << helper_string; return 0;
     }else if(type == 0){
@@ -153,19 +155,29 @@ int main(int argc, char **argv) {
     double start = CycleTimer::currentSeconds();
     sequentialLDD(graph_adj, clusters_seq, beta);
     double mid = CycleTimer::currentSeconds();
-    millerPengXuLDD(graph_adj, clusters_mpx, beta, num_threads);
-    double end = CycleTimer::currentSeconds();
+    std::vector<double> times;
+    for(int i = 1; i<=16; i<<=1){
+        omp_set_num_threads(i);
+        double mid2 = CycleTimer::currentSeconds();
+        millerPengXuLDD(graph_adj, clusters_mpx, beta, i);
+        double end = CycleTimer::currentSeconds();
+        times.push_back(end-mid2);
+        sleep(1);
+    }
     std::cout << "Seq Clusters took: " << mid - start << " sec\n";
     if(verbose){
         std::cout << "Clusters:\n";
-        for(int i = 0; i< clusters_seq.size(); i++)
+        for(int i = 0; i< 50; i++)
             std::cout << clusters_seq[i] << " ";
         std::cout << "\n\n";
     }
-    std::cout << "Miller,Peng,Xu Clusters took: " << end - mid << " sec\n";
+    std::cout << "Miller,Peng,Xu Clusters took: ";
+    for(int x = 0; x<times.size(); x++)
+        std::cout << times[x] << " ";
+    std::cout << "sec\n";
     if(verbose){
         std::cout << "Clusters:\n";
-        for(int i = 0; i< clusters_mpx.size(); i++)
+        for(int i = 0; i< 50; i++)
             std::cout << clusters_mpx[i] << " ";
         std::cout << "\n\n";
     }
